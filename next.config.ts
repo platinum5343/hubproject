@@ -26,20 +26,9 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
-  webpack(config) {
-    const reactPath = path.dirname(require.resolve("react/package.json"));
-    const reactDomPath = path.dirname(require.resolve("react-dom/package.json"));
-
-    config.resolve = config.resolve || {};
-    config.resolve.alias = {
-      ...(config.resolve.alias || {}),
-      react: reactPath,
-      "react-dom": reactDomPath,
-    };
-
-    return config;
-  },
+  turbopack: {},
   reactStrictMode: false,
+
   images: {
     // Cloudflare Pages does not support Next.js Image Optimization.
     // Images are served directly from /public via CDN.
