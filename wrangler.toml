@@ -1,0 +1,22 @@
+# wrangler.toml
+name = "frontend-web-prod"
+main = ".open-next/worker.js"
+compatibility_date = "2025-11-05"
+compatibility_flags = [ "nodejs_compat" ]
+
+# THIS is what makes /public images work
+assets = { directory = ".open-next/assets" }
+
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = true
+persist = true
+head_sampling_rate = 1

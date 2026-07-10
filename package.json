@@ -1,0 +1,42 @@
+{
+  "name": "dispatch_hub",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "cf-build": "opennextjs-cloudflare build",
+    "start": "next start",
+    "lint": "eslint",
+    "preview": "opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare deploy",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+  },
+  "dependencies": {
+    "@react-google-maps/api": "^2.20.7",
+    "@reduxjs/toolkit": "^2.12.0",
+    "dotenv": "^17.4.2",
+    "framer-motion": "^12.23.12",
+    "lodash": "^4.18.1",
+    "next": "^16.2.6",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-icons": "^5.5.0",
+    "react-loader-spinner": "^8.0.0",
+    "react-parallax": "^3.5.2",
+    "react-redux": "^9.2.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@opennextjs/cloudflare": "^1.19.11",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "^16.2.6",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "wrangler": "^4.45.4"
+  }
+}
