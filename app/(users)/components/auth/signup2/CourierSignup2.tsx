@@ -116,11 +116,18 @@ const CourierSignup2 = () => {
       if (!isVerified) {
         dispatch(setSuccess("Courier account created. Please verify your email."));
         dispatch(clearSignupData("courier"));
-        dispatch(openModal("otp-verification"));
+
+        // Backend email verification is link-based (confirm-email/<uidb64>/<token>/),
+        // not a 4-digit OTP. So we should not open the OTP input modal here.
+        dispatch(openModal(null));
 
         if (typeof window !== "undefined") {
           const url = new URL(window.location.href);
+
+          // Backend courier signup triggers email verification first.
+          // If phone verification is also required, it should be handled via the next OTP purpose.
           url.searchParams.set("purpose", "EMAIL_VERIFICATION");
+
           window.history.replaceState({}, "", url.toString());
         }
         return;

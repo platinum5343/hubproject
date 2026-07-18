@@ -1,49 +1,14 @@
-# Auth views implementation checklist
+# TODO
 
-## Step 1: SignIn (done/started)
-- [x] Inspect proxy route `app/api/auth/login/route.ts`
-- [x] Inspect UI `app/(users)/components/auth/SignIn.tsx`
-- [x] Inspect service helpers in `app/(users)/lib/authService.ts`
-- [x] Produce SignIn documentation (payload + behavior)
+## Courier auth OTP/email verification alignment
+- [x] Documented/verified refresh token contract: API.TOKEN_REFRESH returns {access, refresh}
+- [x] Fixed courier signup 400 validation by sending required phone_number in CourierSignup2.tsx
+- [x] Ensured courier signup opens OTP flow and redirects after verification
+- [ ] Align courier signup verification UX with backend behavior:
+  - Backend email says "Verify Email Address" via link (confirm-email/<uidb64>/<token>/)
+  - Frontend currently shows 4-digit OTP UI for purpose=EMAIL_VERIFICATION
+  - Next: modify courier signup flow to show a "check your email" / link-based verification step instead of OTP entry, OR switch purpose to PHONE_VERIFICATION only if backend actually supports phone OTP here.
 
-
-## Step 2: token_refresh
-- [ ] Locate refresh usage in frontend (where refresh token is called)
-- [ ] Write detailed doc for expected request/response
-
-## Step 3: logout
-- [ ] Locate logout UI/action handler
-- [ ] Write detailed doc for required headers/body
-
-## Step 4: email_verification
-- [ ] Locate email verification UI + OTP purpose
-- [ ] Write detailed doc
-
-## Step 5: password_reset
-- [ ] Confirm forgot/reset UI wiring to endpoints
-- [ ] Write detailed doc
-
-## Step 6: phone_otp
-- [ ] Locate phone OTP UI
-- [ ] Write detailed doc
-
-## Step 7: change_password
-- [ ] Locate change password UI/action handler
-- [ ] Write detailed doc
-
-## Step 8: customerSignUp / courierSignUp
-- [ ] Locate signup UIs and backend payload mapping
-- [ ] Write detailed doc
-
-## Step 9: admin_users
-- [ ] Locate admin auth flow
-- [ ] Write detailed doc
-
-## Step 10: courier_documents
-- [ ] Locate courier documents upload flow
-- [ ] Write detailed doc
-
-## Step 11: profile_picture
-- [ ] Locate profile picture upload/update flow
-- [ ] Write detailed doc
+## Task progress
+- Current: user reports email contains link-based verification while UI expects 4-digit OTP.
 
