@@ -90,7 +90,10 @@ async function call(
     return { ok: res.ok, data };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Network error";
-    return { ok: false, data: { detail: message } };
+    const detail = message.toLowerCase().includes("aborted")
+      ? "Request timed out. Please try again."
+      : message;
+    return { ok: false, data: { detail } };
   }
 }
 
@@ -104,7 +107,9 @@ export const loginCustomer = (payload: LoginPayload) =>
 
 // Step 1 of password reset: send the user's email → backend emails a reset link
 export const forgotPassword = (email: string) =>
-  call("/api/auth/forgot-password", { email });
+  // Backend may return { message: "Password reset email sent" }
+  // or { detail: ... } — we just surface whatever comes back.
+  call("/api/auth/forgot-password", { email: email.trim() });
 
 // OTP: request a code (purpose tells the backend what it's for)
 export const requestOtp = (purpose: OtpPurpose, channel: OtpChannel = "EMAIL") =>
@@ -146,3 +151,14 @@ export const logoutUser = (refreshToken: string, authToken: string) =>
 
 export const refreshToken = (refresh: string) =>
   call("/api/auth/refresh", { refresh });
+
+// Courier signup
+export const registerCourier = (payload: {
+  email: string;
+  first_name: string;
+  last_name: string;
+  password: string;
+  password2: string;
+}) =>
+  call("/api/auth/courier-signup", payload);
+

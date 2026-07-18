@@ -51,7 +51,7 @@ const ResetPassword = () => {
     const token  = params.get("token")  ?? "";
 
     if (!uidb64 || !token) {
-      dispatch(setError("Invalid or expired reset link. Please request a new one."));
+      dispatch(setError("Invalid or expired reset link. Use the link from your email to set a new password."));
       return;
     }
 

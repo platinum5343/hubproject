@@ -6,6 +6,9 @@ import {
   setSignupStep2Data,
   SignupStep2Data,
   goBackToStep1,
+  setSuccess,
+  loginSuccess,
+  clearSignupData,
 } from "@/app/(users)/store/authSlice";
 import { useAppDispatch, useAppSelector } from "@/app/(users)/store/hooks";
 import { useState } from "react";
@@ -14,6 +17,11 @@ import Button from "@/app/(users)/components/ui/Button";
 import GoogleButton from "@/app/(users)/components/ui/GoogleButton";
 import AlertMessage from "@/app/(users)/components/ui/AlertMessage";
 import FormGroup from "@/app/(users)/components/ui/FormGroup";
+import {
+  registerCourier,
+  extractToken,
+  parseBackendError,
+} from "@/app/(users)/lib/authService";
 
 const CourierSignup2 = () => {
   const dispatch = useAppDispatch();
@@ -45,28 +53,87 @@ const CourierSignup2 = () => {
       return;
     }
 
-    dispatch(setLoading(true));
-    dispatch(clearMessages());
-
     const step2Data: SignupStep2Data = {
       password: formData.password,
       confirmPassword: formData.confirmPassword,
     };
 
+    if (step2Data.password.length < 8) {
+      dispatch(setError("Password must be at least 8 characters."));
+      return;
+    }
+    if (step2Data.password !== step2Data.confirmPassword) {
+      dispatch(setError("Passwords do not match."));
+      return;
+    }
+
+    dispatch(setLoading(true));
+    dispatch(clearMessages());
+
     dispatch(setSignupStep2Data({ type: "courier", data: step2Data }));
 
+    // Backend expects first_name/last_name + email + password.
+    const nameParts = (courierSignup.step1Data.fullName ?? "").trim().split(/\s+/);
+    const first_name = nameParts[0] ?? "";
+    const last_name = nameParts.slice(1).join(" ") || first_name;
+
+    // Backend for courier signup appears to require phone_number (see backend validation error).
+    // Your UI step1 stores it as courierSignup.step1Data.phoneNumber.
+    const payload: any = {
+      email: courierSignup.step1Data.email,
+      first_name,
+      last_name,
+      phone_number: courierSignup.step1Data.phoneNumber,
+      password: step2Data.password,
+      password2: step2Data.confirmPassword,
+    };
+
     try {
-      // Combine both steps data for API call
-      // const completeSignupData = {
-      //   ...courierSignup.step1Data,
-      //   ...step2Data,
-      //   userType: "courier"
-      // };
-      // await apiCall(completeSignupData);
-    } catch (error) {
-      dispatch(
-        setError(String(error) || "An Error Occurred. Please try again"),
-      );
+      const { ok, data } = await registerCourier(payload);
+      dispatch(setLoading(false));
+
+      if (!ok) {
+        dispatch(setError(parseBackendError(data)));
+        return;
+      }
+
+      const token = extractToken(data);
+      const user = {
+        id: token ?? data.user?.id ?? data.email ?? courierSignup.step1Data.email,
+        email: data.user?.email ?? courierSignup.step1Data.email,
+        name: data.user
+          ? `${data.user.first_name} ${data.user.last_name}`.trim()
+          : courierSignup.step1Data.fullName,
+        isVerified: data.user?.is_verified ?? false,
+        isCourier: true,
+      };
+
+      if (token) {
+        dispatch(loginSuccess({ ...user, id: token }));
+      }
+
+      const isVerified = Boolean(data.user?.is_verified ?? user.isVerified);
+      if (!isVerified) {
+        dispatch(setSuccess("Courier account created. Please verify your email."));
+        dispatch(clearSignupData("courier"));
+        dispatch(openModal("otp-verification"));
+
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          url.searchParams.set("purpose", "EMAIL_VERIFICATION");
+          window.history.replaceState({}, "", url.toString());
+        }
+        return;
+      }
+
+      dispatch(setSuccess("Courier account created successfully!"));
+      dispatch(clearSignupData("courier"));
+
+      // Courier verification completion is handled by courier documents onboarding.
+      dispatch(openModal(null));
+    } catch (err: any) {
+      dispatch(setLoading(false));
+      dispatch(setError(String(err?.message ?? err) || "An Error Occurred. Please try again"));
     }
   };
 

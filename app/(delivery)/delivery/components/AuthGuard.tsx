@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import useTokenRefresh from "../hooks/useTokenRefresh";
+
 
 /**
  * Protects every page inside the customer delivery dashboard.
@@ -13,9 +15,13 @@ import { useRouter } from "next/navigation";
  *  3. Token + !is_courier   → render children (customer is allowed in)
  */
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
+  // Keep access token fresh while the dashboard is open.
+  useTokenRefresh();
+
   const router = useRouter();
   const [checked, setChecked] = useState(false);
   const [allowed, setAllowed] = useState(false);
+
 
   useEffect(() => {
     const token =

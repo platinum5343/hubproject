@@ -68,36 +68,106 @@ const DeliverySignup2 = () => {
     const first_name = nameParts[0] ?? "";
     const last_name  = nameParts.slice(1).join(" ") || first_name; // fallback if single name
 
-    const { ok, data } = await registerCustomer({
-      email:        deliverySignup.step1Data.email,
+    // Customer signup API (backend /user/customer-signup/) in this repo expects:
+    // email, first_name, last_name, phone_number.
+    // If backend also accepts passwords, that can be added later.
+    const payload = {
+      email: deliverySignup.step1Data.email,
       phone_number: deliverySignup.step1Data.phoneNumber,
       first_name,
       last_name,
-      password:     formData.password,
-      password2:    formData.confirmPassword,
+
+      // Backend expects password + password2 at this endpoint
+      password: formData.password,
+      password2: formData.confirmPassword,
+    } as any;
+
+    console.log("[DeliverySignup2] payload:", {
+      email: payload.email,
+      first_name: payload.first_name,
+      last_name: payload.last_name,
+      phone_number: payload.phone_number,
+      hasPassword: Boolean((payload as any).password),
+      hasPassword2: Boolean((payload as any).password2),
     });
 
+    const { ok, data } = await registerCustomer(payload);
+    console.log("[DeliverySignup2] ok/data:", { ok, data });
     dispatch(setLoading(false));
 
     if (!ok) {
-      dispatch(setError(parseBackendError(data)));
+      const backendErr = parseBackendError(data);
+      console.log("[DeliverySignup2] parseBackendError(data):", backendErr);
+    }
+
+    if (!ok) {
+      const backendErr = parseBackendError(data);
+
+      // If the backend says the email already exists, treat this as a normal
+      // "account exists" situation: send the user to Login instead of
+      // keeping them on the password-creation step.
+      const errLower = backendErr.toLowerCase();
+
+      // Handle “email already exists” robustly.
+      // Django patterns we may see:
+      // - "email: A user with this email already exists."
+      // - "A user with this email already exists."
+      // - field errors keyed as email/non_field_errors
+      const looksLikeEmailExists = (
+        (errLower.includes("email") && errLower.includes("already") && errLower.includes("exist")) ||
+        (errLower.includes("already") && errLower.includes("exist"))
+      );
+
+      if (looksLikeEmailExists) {
+        const msg = "An account with this email already exists. Please login instead.";
+        // Show on UI immediately
+        dispatch(setError(msg));
+        dispatch(openModal("signin"));
+        dispatch(setLoading(false));
+
+        // Ensure the user sees the message even after modal switch.
+        setTimeout(() => dispatch(setError(msg)), 0);
+        return;
+      }
+
+
+
+
+      // For other 400s (invalid password/phone/email validation, missing fields, etc.),
+      // show the exact backend error so the user isn't redirected incorrectly.
+      dispatch(setError(backendErr));
       return;
     }
 
-    // Registration succeeded — extract token and log the user in immediately
+    // Registration succeeded — backend returns tokens but may set is_verified=false.
     const token = extractToken(data);
     const user = {
-      id:    token ?? data.user?.id ?? data.email ?? deliverySignup.step1Data.email,
+      id: token ?? data.user?.id ?? data.email ?? deliverySignup.step1Data.email,
       email: data.user?.email ?? deliverySignup.step1Data.email,
-      name:  data.user
+      name: data.user
         ? `${data.user.first_name} ${data.user.last_name}`.trim()
         : deliverySignup.step1Data.fullName,
       isVerified: data.user?.is_verified ?? false,
     };
 
-    // Save token to localStorage (loginSuccess handles this)
     if (token) {
       dispatch(loginSuccess({ ...user, id: token }));
+    }
+
+    const isVerified = Boolean(data.user?.is_verified ?? user.isVerified);
+
+    if (!isVerified) {
+      // Backend requires email verification.
+      // Show OTP verification modal and ask user to verify email.
+      dispatch(setSuccess("Account created. Please verify your email."));
+      dispatch(clearSignupData("delivery"));
+      dispatch(openModal("otp-verification"));
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("purpose", "EMAIL_VERIFICATION");
+        window.history.replaceState({}, "", url.toString());
+      }
+      return;
     }
 
     dispatch(setSuccess("Account created successfully! Welcome to Dispatch Hub."));

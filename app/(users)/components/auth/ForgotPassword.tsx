@@ -41,12 +41,32 @@ const ForgotPassword = () => {
       return;
     }
 
+    // Useful during integration testing: lets us confirm backend actually responded.
+    console.log("[ForgotPassword] forgotPassword success data:", data);
+
+    // If backend sends a 200 but no mail arrives, the issue is backend mail delivery.
+    // This log helps confirm the frontend never blocks sending.
+
+
+
+
+
+
+
     // Store email so OTP screen knows which address to show
     sessionStorage.setItem("dispatch_hub_reset_email", email.trim().toLowerCase());
 
-    dispatch(setSuccess("Password reset email sent. Check your inbox."));
-    // Small delay so user sees the success message before modal switches
-    setTimeout(() => dispatch(openModal("otp-verification")), 1200);
+    const backendMessage = typeof data?.message === "string" ? data.message : null;
+    dispatch(
+      setSuccess(
+        backendMessage
+          ? `${backendMessage}. Open the link from your email to set a new password.`
+          : "Password reset email sent. Open the link from your email to set a new password."
+      )
+    );
+    // Backend reset-password confirms via uidb64+token from the email link.
+    // Therefore, we do not open OTP verification here to avoid confusion.
+
   };
 
   const handleBack = () => {

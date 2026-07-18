@@ -148,7 +148,6 @@ export default function CourierOnboarding() {
   const setDocState = (key: DocKey, patch: Partial<DocState>) =>
     setDocs((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
 
-  // Simulate upload — replace with real API call when backend is ready
   const handleSelect = async (key: DocKey, file: File) => {
     setError(null);
     setDocState(key, { status: "uploading", file });
@@ -161,10 +160,39 @@ export default function CourierOnboarding() {
         })
       : null;
 
-    // TODO: replace with actual upload to /api/courier/documents/upload/
-    await new Promise((res) => setTimeout(res, 1500));
-    setDocState(key, { status: "success", preview });
+    try {
+      const raw = localStorage.getItem("dispatch_hub_user");
+      const user = raw ? JSON.parse(raw) : null;
+      const access = localStorage.getItem("dispatch_hub_token") || "";
+
+      if (!access) {
+        setError("Session expired. Please sign in again.");
+        setDocState(key, { status: "failed", preview });
+        return;
+      }
+
+      // Upload file to backend
+      const { uploadCourierDocument } = await import("../lib/courierDocumentsService");
+      const { ok } = await uploadCourierDocument({
+        token: access,
+        documentType: key,
+        file,
+      });
+
+
+      if (!ok) {
+        setDocState(key, { status: "failed", preview });
+        setError("Upload failed. Please try again.");
+        return;
+      }
+
+      setDocState(key, { status: "success", preview });
+    } catch {
+      setDocState(key, { status: "failed", preview });
+      setError("Upload failed. Please try again.");
+    }
   };
+
 
   const handleRetry = (key: DocKey) =>
     setDocState(key, { status: "idle", preview: null, file: null });
@@ -177,14 +205,65 @@ export default function CourierOnboarding() {
       setError("Please upload at least 4 documents to continue.");
       return;
     }
+
+    setError(null);
     setSubmitting(true);
-    // TODO: POST all docs to backend, then redirect to a "pending review" page
-    await new Promise((res) => setTimeout(res, 800));
-    setSubmitting(false);
-    // For now, just show a success message
-    alert("Documents submitted! You will receive an email once your account is verified.");
-    router.push("/");
+
+    try {
+      const access = localStorage.getItem("dispatch_hub_token") || "";
+      if (!access) {
+        setError("Session expired. Please sign in again.");
+        setSubmitting(false);
+        return;
+      }
+
+      const { fetchCourierDocumentsStatus } = await import(
+        "../lib/courierDocumentsService"
+      );
+
+      // Poll verification status until the backend marks the courier as fully verified.
+      // If verification takes long, this will stop after ~2.5 minutes.
+      const deadlineMs = Date.now() + 150_000;
+      let lastData: any = null;
+
+      while (Date.now() < deadlineMs) {
+        const { ok, data } = await fetchCourierDocumentsStatus({ token: access });
+        if (!ok) {
+          lastData = data;
+          // Retry after a short delay
+        } else {
+          lastData = data;
+          // Expect backend to return CourierVerification fields, including is_fully_verified.
+          const fullyVerified = Boolean(
+            (data as any)?.courier_verification?.is_fully_verified ??
+              (data as any)?.is_fully_verified ??
+              (data as any)?.CourierVerification?.is_fully_verified
+          );
+
+          if (fullyVerified) {
+            router.push("/courier-onboarding?verified=1");
+            setSubmitting(false);
+            return;
+          }
+        }
+
+        await new Promise((res) => setTimeout(res, 3000));
+      }
+
+      setError(
+        "Documents uploaded, but verification is taking longer than expected. You can refresh this page later."
+      );
+
+      // Optionally, show data for debugging (remove in prod)
+      console.log("[courier-onboarding] last verification response:", lastData);
+
+    } catch {
+      setError("Something went wrong while checking verification status.");
+    } finally {
+      setSubmitting(false);
+    }
   };
+
 
   return (
     <div className="min-h-screen flex flex-col">

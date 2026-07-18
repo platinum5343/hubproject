@@ -20,7 +20,7 @@ const Faq = () => {
             </p>
           </div>
           <Link
-            href={""}
+            href="/contact-us"
             className="py-[0.75rem] md:py-4 px-6 md:px-8 rounded-[2rem] unageo-regular text-[1rem] font-medium leading-[1.125rem] md:leading-[1.5rem] w-full md:w-auto button"
           >
             Send A Direct Message

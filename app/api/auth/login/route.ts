@@ -24,6 +24,13 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
+    // Log the incoming payload shape (no sensitive password value)
+    console.log(
+      `[login] request body keys: ${Object.keys(body ?? {}).join(",")}`,
+      `email=${typeof body?.email === "string" ? body.email : ""}`,
+    );
+
+
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 10_000);
 

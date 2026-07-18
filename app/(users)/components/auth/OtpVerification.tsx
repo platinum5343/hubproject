@@ -28,13 +28,29 @@ const OtpVerification = () => {
     if (error) dispatch(clearMessages());
   };
 
-  const handleContinue = async () => {
+type OtpPurpose =
+  | "EMAIL_VERIFICATION"
+  | "PHONE_VERIFICATION"
+  | "PASSWORD_RESET"
+  | "TWO_FACTOR"
+  | "LOGIN";
+
+const getPurposeFromUrl = (): OtpPurpose => {
+  if (typeof window === "undefined") return "PASSWORD_RESET";
+  const params = new URLSearchParams(window.location.search);
+  const purpose = (params.get("purpose") ?? "PASSWORD_RESET") as OtpPurpose;
+  return purpose;
+};
+
+const handleContinue = async () => {
     if (otp.length !== 4) return;
+
+    const purpose = getPurposeFromUrl();
 
     dispatch(setLoading(true));
     dispatch(clearMessages());
 
-    const { ok, data } = await verifyOtp("PASSWORD_RESET", otp);
+    const { ok, data } = await verifyOtp(purpose, otp);
     dispatch(setLoading(false));
 
     if (!ok) {
@@ -42,22 +58,51 @@ const OtpVerification = () => {
       return;
     }
 
-    // Store the verified OTP so ResetPassword can send it along
-    sessionStorage.setItem("dispatch_hub_reset_otp", otp);
-    dispatch(openModal("reset-password"));
+    // For password reset, backend uses uidb64+token from the email link.
+    if (purpose === "PASSWORD_RESET") {
+      dispatch(setError("Use the password reset link sent to your email."));
+      return;
+    }
+
+    // For email/phone verification flows, we consider OTP verification successful.
+    dispatch(setSuccess("Verification successful. You can continue."));
+    if (purpose === "EMAIL_VERIFICATION" || purpose === "PHONE_VERIFICATION") {
+      // Courier signup flow expects to continue to courier onboarding/doc verification.
+      // If you want a different destination, update the href below.
+      setTimeout(() => {
+        dispatch(openModal(null));
+        try {
+          window.location.href = "/courier-onboarding";
+        } catch {
+          dispatch(openModal("signin"));
+        }
+      }, 800);
+    }
   };
 
   const handleResend = async () => {
     dispatch(setLoading(true));
     dispatch(clearMessages());
 
-    const { ok, data } = await requestOtp("PASSWORD_RESET", "EMAIL");
+    const purpose = getPurposeFromUrl();
+
+    // Channel selection: email OTPs for EMAIL_VERIFICATION/PASSWORD_RESET by default.
+    // Phone OTPs for PHONE_VERIFICATION.
+    const channel = purpose === "PHONE_VERIFICATION" ? "SMS" : "EMAIL";
+
+    const { ok, data } = await requestOtp(purpose, channel as any);
     dispatch(setLoading(false));
 
     if (!ok) {
       dispatch(setError(parseBackendError(data)));
     } else {
-      dispatch(setSuccess("A new code has been sent to your email."));
+      dispatch(
+        setSuccess(
+          purpose === "PHONE_VERIFICATION"
+            ? "A new code has been sent to your phone."
+            : "A new code has been sent to your email."
+        )
+      );
     }
   };
 

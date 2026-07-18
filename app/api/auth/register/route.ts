@@ -10,8 +10,15 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
+    console.log(
+      `[register] payload keys: ${Object.keys(body ?? {}).join(",")}`,
+      `email=${typeof (body as any)?.email === "string" ? (body as any).email : ""}`,
+    );
+
+
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10_000);
+    // Increase timeout to reduce false aborts under slow backend responses.
+    const timer = setTimeout(() => controller.abort(), 20_000);
 
     let res: Response;
     try {
@@ -40,7 +47,12 @@ export async function POST(request: NextRequest) {
 
   } catch (err) {
     const message = err instanceof Error ? err.message : "Network error";
-    console.error(`[register] fetch error: ${message}`);
-    return NextResponse.json({ detail: `Network error: ${message}` }, { status: 502 });
+    const isAbort = message.toLowerCase().includes("aborted") || message.toLowerCase().includes("abort");
+    console.error(`[register] fetch error: ${message} | abort=${isAbort}`);
+    return NextResponse.json({
+      detail: isAbort
+        ? "Request timed out while contacting the backend."
+        : `Network error: ${message}`,
+    }, { status: isAbort ? 504 : 502 });
   }
 }
